@@ -1,0 +1,267 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this file,
+   - You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Sample page</title>
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type" />
+  <meta name="viewport" content="width=device-width; user-scalable=0" />
+  <style>
+      #autoplay-control {
+        position: fixed;
+        top: 5px;
+        right: 15px;
+      }
+      #lineHighlight {
+        width: 10px;
+        height: 10px;
+        border: 1px solid blue;
+        position: absolute;
+        display: flex;
+        align-items: center;
+      }
+      #lineHighlight.hidden {
+        display:none;
+      }
+      #wordHighlight {
+        display: block;
+        flex-basis: auto;
+        width: 10px;
+        height: 10px;
+        border: 1px solid orange;
+        background-color: rgba(255,153,0, 0.5);
+      }
+      p {
+        line-height: 1.5em;
+      }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Letters From The Earth</h1>
+  <h2>by Mark Twain</h2>
+  <div class="pubdate">
+    <p>originally written in 1909, according to Mark Twain A to
+    Z and Mark Twain's Last Days</p>
+  </div>
+</header>
+
+<section>
+  <p>The Creator sat upon the throne, thinking. Behind him
+  stretched the illimitable continent of heaven, steeped in a
+  glory of light and color; before him rose the black night of
+  Space, like a wall. His mighty bulk towered rugged and
+  mountain-like into the zenith, and His divine head blazed
+  there like a distant sun. At His feet stood three colossal
+  figures, diminished to extinction, almost, by contrast --
+  archangels -- their heads level with His ankle-bone.</p>
+
+  <p>When the Creator had finished thinking, He said, "I have
+  thought. Behold!"</p>
+
+  <p>He lifted His hand, and from it burst a fountain-spray of fire,
+  a million stupendous suns, which clove the blackness and
+  soared, away and away and away, diminishing in magnitude
+  and intensity as they pierced the far frontiers of Space, until
+  at last they were but as diamond nailheads sparkling under
+  the domed vast roof of the universe.</p>
+</section>
+
+<div id="lineHighlight" class="hidden">
+  <div id="wordHighlight"></div>
+</div>
+<script>
+
+function init() {
+  document.getElementById("autoplay-btn").checked = false;
+  document.getElementById("autoplay-btn").addEventListener("click", (event) => {
+    console.log("autoplay-btn clicked: ", event.target.checked);
+    if (event.target.checked) {
+      autoplayHighlighter.play();
+    } else {
+      autoplayHighlighter.stop();
+    }
+  });
+  autoplayHighlighter.init(document.querySelector("body > section"));
+}
+
+const autoplayHighlighter = new class _Autoplay {
+  currentBlockIndex = 0;
+  currentWordIndex = 0;
+  init(containerElem) {
+    this.containerElem = containerElem;
+    this.blocks = containerElem.querySelectorAll("p");
+    this.currentBlock = this.blocks[this.currentBlockIndex];
+    this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
+  }
+  next() {
+    let offsets = this.wordOffsets[this.currentWordIndex];
+
+    highlightLineAndWord({
+      currentBlock: this.currentBlock,
+      currentTextNode: this.currentBlock.firstChild,
+      currentOffsets: [
+        offsets.start, 
+        offsets.end
+      ],
+    }, this.containerElem);
+
+    this.currentWordIndex++;
+    if (this.currentWordIndex >= this.wordOffsets.length) {
+      this.currentWordIndex = 0;
+      let nextBlock = this.blocks[++this.currentBlockIndex];
+      if (!nextBlock) {
+        console.info("Complete");
+        return;
+      }
+      this.currentBlock = nextBlock;
+      this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
+    }
+    this.playingTimer = setTimeout(() => {
+      if (this.autoPlay) {
+        this.next();
+      }
+    }, 400);
+  }
+  play() {
+    if (this.playingTimer) {
+      clearTimeout(this.playingTimer);
+    }
+    document.getElementById("lineHighlight").classList.toggle("hidden", false);
+    this.autoPlay = true;
+    this.next();
+  }
+  stop() {
+    this.autoPlay = false;
+    clearTimeout(this.playingTimer);
+  }
+};
+
+// placeholder parser to get us the word offsets and give us something to highlight
+function getWordOffsets(textString) {
+  let wordOffsets = [];
+  let wordBoundary = true;
+  let charIndex = 0;
+  for(let lastCharIndex = textString.length-1; charIndex <= lastCharIndex; charIndex++) {
+    let char = textString[charIndex];
+    if (/[\.\s,"]/.test(char)) {
+      if (!wordBoundary) {
+        wordOffsets[wordOffsets.length-1].end = charIndex;
+        wordBoundary = true; 
+      }
+      continue;
+    }
+    if (wordBoundary) {
+      wordOffsets.push({
+        start: charIndex,
+        word: char,
+        end: -1,
+      });
+      wordBoundary = false;
+    } else {
+      wordOffsets[wordOffsets.length-1].word += char;
+    }
+  }
+  wordOffsets[wordOffsets.length-1].end = charIndex;
+  return wordOffsets;
+}
+
+let range = document.createRange();
+
+function getLineBoxForElement(elem) {
+  // returns a DOMRect with bounds for a line of text in this element
+  // So that e.g. getting line 3 means box.height * (lineNum -1). 
+  const rect = elem.getBoundingClientRect(); 
+  const lineHeight = parseFloat(getComputedStyle(elem).lineHeight);
+  const blockPadding = parseFloat(getComputedStyle(elem).paddingBlock); 
+  const lineCount = rect.height - blockPadding / lineHeight;
+  
+  Object.assign(rect, {
+    height: lineHeight,
+    topOffset: blockPadding,
+    bottomOffset: blockPadding,
+  });
+  console.log("getLineBoxForElement", rect);
+  return rect;
+}
+
+function snapToLine(textRangeBox, lineBoxHeight, elemRect) {
+  // FIXME: implement this so we can accept a rect and return
+  // an adjusted rect which represents the nearest line
+
+  // range gives me coordinates for the textNode
+  // line box has our grid units
+  // element bounding rect has containing coordinates
+  return Object.assign({}, textRangeBox, {
+    top: textRangeBox.top % lineBoxHeight,
+  });
+}
+
+function highlightLineAndWord(options = {}, boundingElem) {
+  // Highlight a word on the first line as an example of using Range
+  // The text nodes and offets into them would need to be produced by
+  // tokenizing/splitting out into word/word-like sequences
+  const [startRangeOffset, endRangeOffset] = options.currentOffsets;
+  const textNode = options.currentTextNode;
+  range.setStart(textNode, startRangeOffset);
+  range.setEnd(textNode, endRangeOffset);
+  console.log(`highlighting range [${startRangeOffset} - ${endRangeOffset}] which should be word:`, options.currentOffsets.word);
+  
+  // a box that contains the whole paragraph/block
+  const containerRect = boundingElem.getBoundingClientRect();
+
+  // a box that contains the element that contains the textNode
+  const currentLineRect = getLineBoxForElement(options.currentBlock);
+  console.log("currentLineRect:", options.currentBlock, currentLineRect);
+  // a box that contains the current character range (e.g. current word)
+  const rangeRect = range.getBoundingClientRect();
+  console.log("rangeRect:", rangeRect);
+
+  const highlightLineBox = document.getElementById("lineHighlight");
+  const wordBox = document.getElementById("wordHighlight");
+  const lineIndex = (rangeRect.y - currentLineRect.y) / currentLineRect.height;
+  highlightLineBox.style.cssText = `
+    left: ${window.scrollX + currentLineRect.x}px;
+    top: ${window.scrollY + currentLineRect.y + lineIndex * currentLineRect.height }px;
+    width: ${containerRect.width}px;
+    height: ${currentLineRect.height}px;
+  `;
+  console.log("rangeRect:", rangeRect);
+  wordBox.style.cssText = `
+    left: ${currentLineRect.x}px;
+    transform: translate(${rangeRect.x - currentLineRect.x}px, 0px);
+    width: ${rangeRect.width}px;
+    height: ${rangeRect.height}px;
+  `;
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+
+<label id="autoplay-control"><input type="checkbox" id="autoplay-btn">Autoplay</label>
+<p>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+</p>
+</body>
+
+</html>
