@@ -172,33 +172,43 @@ function getWordOffsets(textString) {
 
 let range = document.createRange();
 
-function getLineBoxForElement(elem) {
+function getLineBoxForTextRange(textRange, containerElem) {
   // returns a DOMRect with bounds for a line of text in this element
   // So that e.g. getting line 3 means box.height * (lineNum -1). 
-  const rect = elem.getBoundingClientRect(); 
-  const lineHeight = parseFloat(getComputedStyle(elem).lineHeight);
-  const blockPadding = parseFloat(getComputedStyle(elem).paddingBlock); 
+  const lineHeight = parseFloat(getComputedStyle(containerElem).lineHeight);
+  const MIN_BLOCK_PADDING = 5;
+  const blockPadding = Math.max(MIN_BLOCK_PADDING, parseFloat(getComputedStyle(containerElem).paddingBlock)); 
+
+  // TODO: what if the text range spans elements?
+  const rect = containerElem.getBoundingClientRect(); 
   const lineCount = rect.height - blockPadding / lineHeight;
   
-  Object.assign(rect, {
-    height: lineHeight,
-    topOffset: blockPadding,
+  const lineRect = snapToLine(textRange, lineHeight, rect);
+
+  const lineBox = {
+    x: lineRect.x,
+    y: lineRect.y,
+    width: lineRect.width,
+    height: lineRect.height,
+    topOffset: -blockPadding,
     bottomOffset: blockPadding,
-  });
-  console.log("getLineBoxForElement", rect);
-  return rect;
+  };
+  console.log("getLineBoxForElement", lineBox);
+  return lineBox;
 }
 
-function snapToLine(textRangeBox, lineBoxHeight, elemRect) {
-  // FIXME: implement this so we can accept a rect and return
-  // an adjusted rect which represents the nearest line
-
+function snapToLine(textRange, lineBoxHeight, elemRect) {
   // range gives me coordinates for the textNode
   // line box has our grid units
   // element bounding rect has containing coordinates
-  return Object.assign({}, textRangeBox, {
-    top: textRangeBox.top % lineBoxHeight,
-  });
+
+  let rangeRect = textRange.getBoundingClientRect();
+  let yOffset = rangeRect.y - elemRect.y;
+  let lineRect = DOMRect.fromRect(Object.assign({}, rangeRect, {
+    y: elemRect.y + yOffset - (yOffset % lineBoxHeight),
+    height: lineBoxHeight,
+  }));
+  return lineRect;
 }
 
 function highlightLineAndWord(options = {}, boundingElem) {
@@ -215,25 +225,27 @@ function highlightLineAndWord(options = {}, boundingElem) {
   const containerRect = boundingElem.getBoundingClientRect();
 
   // a box that contains the element that contains the textNode
-  const currentLineRect = getLineBoxForElement(options.currentBlock);
-  console.log("currentLineRect:", options.currentBlock, currentLineRect);
+  const currentLineBox = getLineBoxForTextRange(range, options.currentBlock);
+  console.log("currentLineBox:", options.currentBlock, currentLineBox);
   // a box that contains the current character range (e.g. current word)
   const rangeRect = range.getBoundingClientRect();
   console.log("rangeRect:", rangeRect);
 
   const highlightLineBox = document.getElementById("lineHighlight");
   const wordBox = document.getElementById("wordHighlight");
-  const lineIndex = (rangeRect.y - currentLineRect.y) / currentLineRect.height;
+  const lineIndex = (rangeRect.y - currentLineBox.y) / currentLineBox.height;
+  highlightLineBox.classList.remove("hidden");
   highlightLineBox.style.cssText = `
-    left: ${window.scrollX + currentLineRect.x}px;
-    top: ${window.scrollY + currentLineRect.y + lineIndex * currentLineRect.height }px;
+    left: ${window.scrollX + currentLineBox.x}px;
+    top: ${window.scrollY + currentLineBox.y + currentLineBox.topOffset}px;
+    // top: ${window.scrollY + currentLineBox.y + lineIndex * currentLineBox.height }px;
     width: ${containerRect.width}px;
-    height: ${currentLineRect.height}px;
+    height: ${currentLineBox.height + currentLineBox.bottomOffset}px;
   `;
   console.log("rangeRect:", rangeRect);
   wordBox.style.cssText = `
-    left: ${currentLineRect.x}px;
-    transform: translate(${rangeRect.x - currentLineRect.x}px, 0px);
+    left: ${currentLineBox.x}px;
+    transform: translate(${rangeRect.x - currentLineBox.x}px, 0px);
     width: ${rangeRect.width}px;
     height: ${rangeRect.height}px;
   `;
