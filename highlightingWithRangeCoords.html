@@ -76,6 +76,10 @@
 </div>
 <script>
 
+function clamp(num, min, max) {
+  return Math.max(min, Math.min(max, num));
+}
+
 function init() {
   document.getElementById("autoplay-btn").checked = false;
   document.getElementById("autoplay-btn").addEventListener("click", (event) => {
@@ -95,37 +99,118 @@ const autoplayHighlighter = new class _Autoplay {
   init(containerElem) {
     this.containerElem = containerElem;
     this.blocks = containerElem.querySelectorAll("p");
-    this.currentBlock = this.blocks[this.currentBlockIndex];
     this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
+    document.addEventListener("keydown", this);
   }
-  next() {
-    let offsets = this.wordOffsets[this.currentWordIndex];
+  handleEvent(event) {
+    if (event.type === "keydown") {
+      switch (event.key) {
+        case "ArrowDown":
+          this.moveBlockNext();
+          this.renderCurrentRange();
+          event.preventDefault();
+          break;
+        case "ArrowUp":
+          this.moveBlockPrevious();
+          this.renderCurrentRange();
+          event.preventDefault();
+          break;
+        case "ArrowLeft":
+          this.moveInlinePrevious();
+          this.renderCurrentRange();
+          event.preventDefault();
+          break;
+        case "ArrowRight":
+          this.moveInlineNext();
+          this.renderCurrentRange();
+          event.preventDefault();
+          break;
+      }
+    }
+  }
+  moveDown() {
+    this.moveBlockNext();
+  }
+  moveUp() {
+    this.moveBlockPrevious();
+  }
+  moveLeft() {
+    this.moveInlinePrevious();
+  }
+  moveRight() {
+    this.moveInlineNext();
+  }
+  moveInlineNext() {
+    this.currentWordIndex = clamp(this.currentWordIndex + 1, 0, this.wordOffsets.length -1);
+  }
+  moveInlinePrevious() {
+    this.currentWordIndex = clamp(this.currentWordIndex -1, 0, this.wordOffsets.length -1);
+  }
+  moveInlineEnd() {
+    this.currentWordIndex = this.wordOffsets.length -1;
+  }
+  moveInlineStart() {
+    this.currentWordIndex = 0;
+  }
+  moveBlockEnd() {
+    this._updateBlock(this.blocks.length - 1);
+  }
+  moveBlockStart() {
+    this._updateBlock(0);
+  }
+  moveBlockNext() {
+    let newIndex = clamp(this.currentBlockIndex + 1, 0, this.blocks.length -1);
+    this._updateBlock(newIndex);
+  }
+  moveBlockPrevious() {
+    let newIndex = clamp(this.currentBlockIndex - 1, 0, this.blocks.length -1);
+    this._updateBlock(newIndex);
+  }
+  get currentBlock() {
+    return this.blocks[this.currentBlockIndex];
+  }
+  _updateBlock(newIndex) {
+    this.currentBlockIndex = newIndex;
+    // TODO: we're assuming a single text node, which is a bad assumption
+    this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
+    this.currentWordIndex = clamp(this.currentWordIndex, 0, this.wordOffsets.length -1);
+  }
 
+  playNext() {
+    let snapshot = {
+      wordIndex: this.currentWordIndex,
+      blockIndex: this.currentBlockIndex
+    };
+
+    if (this.currentWordIndex >= this.wordOffsets.length) {
+      this.moveInlineStart();
+      this.moveBlockNext();
+    } else {
+      this.moveInlineNext();
+    }
+    if (this.currentBlockIndex == snapshot.blockIndex && this.currentWordIndex == snapshot.wordIndex) {
+      // no change; we reached the end
+      console.info("Complete");
+      return;
+    }
+
+    this.playingTimer = setTimeout(() => {
+      this.renderCurrentRange();
+      if (this.autoPlay) {
+        this.playNext();
+      }
+    }, 400);
+  }
+  renderCurrentRange() {
+    let charRangeOffsets = this.wordOffsets[this.currentWordIndex];
     highlightLineAndWord({
       currentBlock: this.currentBlock,
       currentTextNode: this.currentBlock.firstChild,
       currentOffsets: [
-        offsets.start, 
-        offsets.end
+        charRangeOffsets.start, 
+        charRangeOffsets.end
       ],
     }, this.containerElem);
-
-    this.currentWordIndex++;
-    if (this.currentWordIndex >= this.wordOffsets.length) {
-      this.currentWordIndex = 0;
-      let nextBlock = this.blocks[++this.currentBlockIndex];
-      if (!nextBlock) {
-        console.info("Complete");
-        return;
-      }
-      this.currentBlock = nextBlock;
-      this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
-    }
-    this.playingTimer = setTimeout(() => {
-      if (this.autoPlay) {
-        this.next();
-      }
-    }, 400);
   }
   play() {
     if (this.playingTimer) {
@@ -133,7 +218,8 @@ const autoplayHighlighter = new class _Autoplay {
     }
     document.getElementById("lineHighlight").classList.toggle("hidden", false);
     this.autoPlay = true;
-    this.next();
+    this.renderCurrentRange();
+    this.playNext();
   }
   stop() {
     this.autoPlay = false;
