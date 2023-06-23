@@ -91,37 +91,84 @@ function init() {
     }
   });
   autoplayHighlighter.init(document.querySelector("body > section"));
+  autoplayHighlighter.renderCurrentRange();
 }
 
 const autoplayHighlighter = new class _Autoplay {
   currentBlockIndex = 0;
   currentWordIndex = 0;
+  currentLineIndex = 0;
+
   init(containerElem) {
     this.containerElem = containerElem;
     this.blocks = containerElem.querySelectorAll("p");
     this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
+    // an array of objects with rect coordinates and charStart/charEnd offsets for words on each line
+    this.currentLines = [];
+    this.calculateLines();
     document.addEventListener("keydown", this);
   }
+  get currentBlock() {
+    return this.blocks[this.currentBlockIndex];
+  }
+  calculateLines() {
+    const range = document.createRange();
+    const textNode = this.currentBlock.firstChild;
+    const lines = [];
+    let lineIndex;
+    let lineEnd = 0;
+    for (let wordIndex = 0; wordIndex < this.wordOffsets.length; wordIndex++) {
+      const offset = this.wordOffsets[wordIndex];
+      range.setStart(textNode, offset.start);
+      range.setEnd(textNode, offset.end);
+      const lineBox = getLineBoxForTextRange(range, this.currentBlock);
+      if (lineBox.index !== lineIndex) {
+        lineIndex = lineBox.index;
+        lines.push({
+          firstWordIndex: wordIndex,
+          top: lineBox.top,
+          y: lineBox.y,
+          bottom: lineBox.bottom,
+          left: lineBox.x,
+          x: lineBox.x,
+          right: lineBox.right,
+          charStart: offset.start, 
+        });
+      }
+      lines[lineIndex].charEnd = offset.end; 
+    }
+    this.currentLines = lines;
+  }
+  _updateBlock(newIndex) {
+    this.currentBlockIndex = newIndex;
+    // TODO: we're assuming a single text node, which is a bad assumption
+    this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
+    this.calculateLines();
+    // default to positioning at the first word of the first line 
+    this.currentLineIndex = 0;
+    this.currentWordIndex = this.currentLines[this.currentLineIndex].firstWordIndex;
+  }
+
   handleEvent(event) {
     if (event.type === "keydown") {
       switch (event.key) {
         case "ArrowDown":
-          this.moveBlockNext();
+          this.moveDown();
           this.renderCurrentRange();
           event.preventDefault();
           break;
         case "ArrowUp":
-          this.moveBlockPrevious();
+          this.moveUp();
           this.renderCurrentRange();
           event.preventDefault();
           break;
         case "ArrowLeft":
-          this.moveInlinePrevious();
+          this.moveLeft();
           this.renderCurrentRange();
           event.preventDefault();
           break;
         case "ArrowRight":
-          this.moveInlineNext();
+          this.moveRight();
           this.renderCurrentRange();
           event.preventDefault();
           break;
@@ -129,10 +176,10 @@ const autoplayHighlighter = new class _Autoplay {
     }
   }
   moveDown() {
-    this.moveBlockNext();
+    this.moveLineNext();
   }
   moveUp() {
-    this.moveBlockPrevious();
+    this.moveLinePrevious();
   }
   moveLeft() {
     this.moveInlinePrevious();
@@ -152,6 +199,40 @@ const autoplayHighlighter = new class _Autoplay {
   moveInlineStart() {
     this.currentWordIndex = 0;
   }
+  moveLineNext() {
+    let nextLineIndex = this.currentLineIndex + 1;
+    if (nextLineIndex > this.currentLines.length - 1) {
+      // the nextx line is in the next block
+      let blockIndex = this.currentBlockIndex;
+      this.moveBlockNext();
+      if (this.currentBlockIndex > blockIndex) {
+        nextLineIndex = 0;
+      }
+    }
+    this.currentLineIndex = Math.min(nextLineIndex, this.currentLines.length - 1);
+    this.currentWordIndex = this.currentLines[this.currentLineIndex].firstWordIndex;
+  }
+  moveLinePrevious() {
+    let prevLineIndex = this.currentLineIndex - 1;
+    if (prevLineIndex < 0) {
+      // if the previous line is in the previous block
+      let blockIndex = this.currentBlockIndex;
+      this.moveBlockPrevious();
+      if (this.currentBlockIndex < blockIndex) {
+        prevLineIndex = this.currentLines.length - 1;
+      }
+    }
+    this.currentLineIndex = Math.max(0, prevLineIndex);
+    this.currentWordIndex = this.currentLines[this.currentLineIndex].firstWordIndex;
+  }
+  moveLineEnd() {
+    this.currentLineIndex = this.currentLines.length - 1;
+    this.currentWordIndex = this.currentLines[this.currentLineIndex].firstWordIndex;
+  }
+  moveLineStart() {
+    this.currentLineIndex = 0;
+    this.currentWordIndex = this.currentLines[this.currentLineIndex].firstWordIndex;
+  }
   moveBlockEnd() {
     this._updateBlock(this.blocks.length - 1);
   }
@@ -166,16 +247,6 @@ const autoplayHighlighter = new class _Autoplay {
     let newIndex = clamp(this.currentBlockIndex - 1, 0, this.blocks.length -1);
     this._updateBlock(newIndex);
   }
-  get currentBlock() {
-    return this.blocks[this.currentBlockIndex];
-  }
-  _updateBlock(newIndex) {
-    this.currentBlockIndex = newIndex;
-    // TODO: we're assuming a single text node, which is a bad assumption
-    this.wordOffsets = getWordOffsets(this.currentBlock.firstChild.wholeText);
-    this.currentWordIndex = clamp(this.currentWordIndex, 0, this.wordOffsets.length -1);
-  }
-
   playNext() {
     let snapshot = {
       wordIndex: this.currentWordIndex,
@@ -184,7 +255,7 @@ const autoplayHighlighter = new class _Autoplay {
 
     if (this.currentWordIndex >= this.wordOffsets.length) {
       this.moveInlineStart();
-      this.moveBlockNext();
+      this.moveLineNext();
     } else {
       this.moveInlineNext();
     }
@@ -263,23 +334,23 @@ function getLineBoxForTextRange(textRange, containerElem) {
   // So that e.g. getting line 3 means box.height * (lineNum -1). 
   const lineHeight = parseFloat(getComputedStyle(containerElem).lineHeight);
   const MIN_BLOCK_PADDING = 5;
-  const blockPadding = Math.max(MIN_BLOCK_PADDING, parseFloat(getComputedStyle(containerElem).paddingBlock)); 
+  const blockPadding = parseFloat(getComputedStyle(containerElem).paddingBlock); 
+  const boxBlockPadding = Math.max(MIN_BLOCK_PADDING, blockPadding); 
 
   // TODO: what if the text range spans elements?
   const rect = containerElem.getBoundingClientRect(); 
-  const lineCount = rect.height - blockPadding / lineHeight;
-  
+  const lineCount = (rect.height - blockPadding*2) / lineHeight;
   const lineRect = snapToLine(textRange, lineHeight, rect);
-
   const lineBox = {
+    index: Math.floor((lineRect.y - rect.y)/lineHeight), 
+    lineCount,
     x: lineRect.x,
     y: lineRect.y,
     width: lineRect.width,
     height: lineRect.height,
-    topOffset: -blockPadding,
-    bottomOffset: blockPadding,
+    topOffset: -boxBlockPadding,
+    bottomOffset: boxBlockPadding,
   };
-  console.log("getLineBoxForElement", lineBox);
   return lineBox;
 }
 
@@ -312,10 +383,8 @@ function highlightLineAndWord(options = {}, boundingElem) {
 
   // a box that contains the element that contains the textNode
   const currentLineBox = getLineBoxForTextRange(range, options.currentBlock);
-  console.log("currentLineBox:", options.currentBlock, currentLineBox);
   // a box that contains the current character range (e.g. current word)
   const rangeRect = range.getBoundingClientRect();
-  console.log("rangeRect:", rangeRect);
 
   const highlightLineBox = document.getElementById("lineHighlight");
   const wordBox = document.getElementById("wordHighlight");
