@@ -97,9 +97,6 @@
 </p>
 </section>
 
-<div id="lineHighlight" class="hidden">
-  <div id="wordHighlight"></div>
-</div>
 <label id="autoplay-control"><input type="checkbox" id="autoplay-btn">Autoplay</label>
 
 <script>
@@ -118,6 +115,9 @@ function init() {
       autoplayHighlighter.stop();
     }
   });
+  let readerHighlighter = document.createElement("reader-highlighter");
+  document.body.appendChild(readerHighlighter);
+
   autoplayHighlighter.init([
     document.querySelector("body > header"),
     ...document.querySelectorAll("body > section")
@@ -207,36 +207,36 @@ function isBlockElement(elem) {
   return !csDisplay.startsWith("inline");
 }
 function collectBlockElements(parentElem) {
-    const blocks = [];
-    // Find block (non inline) elements with textContent. 
-    // Discard empty elements
-    // Throw in the case an element mixes textNodes and/or inline elements and child block elements
-    let hasText = false;
-    const notEmptyRe = /\w+/;
+  const blocks = [];
+  // Find block (non inline) elements with textContent. 
+  // Discard empty elements
+  // Throw in the case an element mixes textNodes and/or inline elements and child block elements
+  let hasText = false;
+  const notEmptyRe = /\w+/;
 
-    for(let child of parentElem.childNodes) {
-      if(isBlockElement(child)) {
-        let blockChildren = collectBlockElements(child);
-        if (blockChildren) {
-          blocks.push(...blockChildren);
-        } else {
-          blocks.push(child);
-        }
-      } else if (
-        (child.nodeType == child.TEXT_NODE && notEmptyRe.test(child.wholeText)) ||
-        (child.nodeType = child.ELEMENT_NODE && notEmptyRe.test(child.textContent))
-      ) {
-        hasText = true;
+  for(let child of parentElem.childNodes) {
+    if(isBlockElement(child)) {
+      let blockChildren = collectBlockElements(child);
+      if (blockChildren) {
+        blocks.push(...blockChildren);
+      } else {
+        blocks.push(child);
       }
+    } else if (
+      (child.nodeType == child.TEXT_NODE && notEmptyRe.test(child.wholeText)) ||
+      (child.nodeType = child.ELEMENT_NODE && notEmptyRe.test(child.textContent))
+    ) {
+      hasText = true;
     }
-    console.assert(!(hasText && blocks.length), "Element has both text nodes and child block elements")
-    if (blocks.length) {
-      return blocks;
-    } else if (hasText) {
-      return [parentElem];
-    }
-    return null;
   }
+  console.assert(!(hasText && blocks.length), "Element has both text nodes and child block elements")
+  if (blocks.length) {
+    return blocks;
+  } else if (hasText) {
+    return [parentElem];
+  }
+  return null;
+}
 
 const autoplayHighlighter = new class _Autoplay {
   currentBlockIndex = 0;
@@ -554,6 +554,7 @@ const autoplayHighlighter = new class _Autoplay {
       currentTextNode: charRangeOffsets.textNode,
       currentOffsets: charRangeOffsets,
     }, this.containerElement);
+
   }
   play() {
     if (this.playingTimer) {
@@ -647,6 +648,47 @@ function snapToLine(textRange, lineBoxHeight, elemRect) {
   }));
   return lineRect;
 }
+class Highlighter extends HTMLElement {
+  linePadding = 5;
+  connectedCallback() {
+    this.lineAreaElem = this;
+    this.classList.add("hidden");
+    this.lineAreaElem.id = "lineHighlight";
+    this.wordAreaElem = document.createElement("div");
+    this.wordAreaElem.id = "wordHighlight";
+    this.appendChild(this.wordAreaElem);
+  }
+  // accepts a DOMRect for the outer line rectangle we want to highlight
+  // and a DOMRect for the innner word rectangle
+  renderAreas(lineRect, wordArea) {
+    let lineArea = new DOMRect(
+      lineRect.x, 
+      lineRect.y - this.linePadding, 
+      lineRect.width, 
+      lineRect.height + this.linePadding*2
+    );
+    this.classList.remove("hidden");
+    this.lineAreaElem.style.cssText = `
+      left: ${window.scrollX + lineArea.x}px;
+      top: ${window.scrollY + lineArea.y}px;
+      width: ${lineArea.width}px;
+      height: ${lineArea.height}px;
+    `;
+    this.wordAreaElem.style.cssText = `
+      left: ${wordArea.x}px;
+      transform: translate(${wordArea.x}px, 0px);
+      width: ${wordArea.width}px;
+      height: ${wordArea.height}px;
+    `;
+  }
+}
+customElements.define("reader-highlighter", Highlighter);
+
+function highlightLine(lineRect, wordRect) {
+  const highlightLineElem = document.getElementById("lineHighlight");
+  const wordBox = document.getElementById("wordHighlight");
+  const lineIndex = (rangeRect.y - currentLineBox.y) / currentLineBox.height;
+}
 
 function highlightLineAndWord(options = {}, boundingElem) {
   // Highlight a word on the first line as an example of using Range
@@ -669,23 +711,23 @@ function highlightLineAndWord(options = {}, boundingElem) {
   // a box that contains the current character range (e.g. current word)
   const rangeRect = range.getBoundingClientRect();
 
-  const highlightLineBox = document.getElementById("lineHighlight");
-  const wordBox = document.getElementById("wordHighlight");
-  const lineIndex = (rangeRect.y - currentLineBox.y) / currentLineBox.height;
-  highlightLineBox.classList.remove("hidden");
-  highlightLineBox.style.cssText = `
-    left: ${window.scrollX + currentLineBox.x}px;
-    top: ${window.scrollY + currentLineBox.y + currentLineBox.topOffset}px;
-    // top: ${window.scrollY + currentLineBox.y + lineIndex * currentLineBox.height }px;
-    width: ${containerRect.width}px;
-    height: ${currentLineBox.height + currentLineBox.bottomOffset}px;
-  `;
-  wordBox.style.cssText = `
-    left: ${currentLineBox.x}px;
-    transform: translate(${rangeRect.x - currentLineBox.x}px, 0px);
-    width: ${rangeRect.width}px;
-    height: ${rangeRect.height}px;
-  `;
+  // the rectangle that represents the line
+  const lineRect = new DOMRect(
+    currentLineBox.x,
+    currentLineBox.y,
+    containerRect.width,
+    currentLineBox.height
+  );
+  // the rectangle that represents the word
+  const wordRect = new DOMRect(
+    rangeRect.x,
+    currentLineBox.y,
+    rangeRect.width,
+    rangeRect.height
+  );
+
+  const highlightLineElem = document.getElementById("lineHighlight");
+  highlightLineElem.renderAreas(lineRect, wordRect);
 }
 document.addEventListener("DOMContentLoaded", init);
 </script>
