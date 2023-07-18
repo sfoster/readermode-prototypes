@@ -105,24 +105,170 @@ function clamp(num, min, max) {
   return Math.max(min, Math.min(max, num));
 }
 
-function init() {
-  document.getElementById("autoplay-btn").checked = false;
-  document.getElementById("autoplay-btn").addEventListener("click", (event) => {
-    console.log("autoplay-btn clicked: ", event.target.checked);
-    if (event.target.checked) {
-      autoplayHighlighter.play();
-    } else {
-      autoplayHighlighter.stop();
-    }
-  });
-  let readerHighlighter = document.createElement("reader-highlighter");
-  document.body.appendChild(readerHighlighter);
+// placeholder parser to get us the word offsets and give us something to highlight
+function getWordOffsets(textNode) {
+  let wordOffsets = [];
+  let wordBoundary = true;
+  let charIndex = 0;
+  let textString = textNode.wholeText;
 
-  autoplayHighlighter.init([
-    document.querySelector("body > header"),
-    ...document.querySelectorAll("body > section")
-  ]);
-  autoplayHighlighter.renderCurrentRange();
+  for(let lastCharIndex = textString.length-1; charIndex <= lastCharIndex; charIndex++) {
+    let char = textString[charIndex];
+    if (/[\.\s,"]/.test(char)) {
+      if (!wordBoundary) {
+        wordOffsets[wordOffsets.length-1].end = charIndex;
+        wordBoundary = true; 
+      }
+      continue;
+    }
+    if (wordBoundary) {
+      wordOffsets.push({
+        start: charIndex,
+        word: char,
+        end: -1,
+      });
+      wordBoundary = false;
+    } else {
+      wordOffsets[wordOffsets.length-1].word += char;
+    }
+  }
+  wordOffsets[wordOffsets.length-1].end = charIndex;
+  return wordOffsets;
+}
+
+let range = document.createRange();
+function getLineBoxForTextRange(textRange, containerElem) {
+  // returns a DOMRect with bounds for a line of text in this element
+  // So that e.g. getting line 3 means box.height * (lineNum -1). 
+  let { lineHeight, fontSize } = getComputedStyle(containerElem);
+  if (lineHeight.endsWith("px")) {
+    lineHeight = parseFloat(lineHeight); 
+  } else {
+    // default to 1.2em for non px line-height values
+    lineHeight = parseFloat(fontSize) * 1.2; 
+  }
+  const MIN_BLOCK_PADDING = 5;
+  const blockPadding = parseFloat(getComputedStyle(containerElem).paddingBlock); 
+  const boxBlockPadding = Math.max(MIN_BLOCK_PADDING, blockPadding); 
+
+  // TODO: what if the text range spans elements?
+  const rect = containerElem.getBoundingClientRect(); 
+  const lineCount = (rect.height - blockPadding*2) / lineHeight;
+  const lineRect = snapToLine(textRange, lineHeight, rect);
+  const lineBox = {
+    index: Math.floor((lineRect.y - rect.y)/lineHeight), 
+    lineCount,
+    x: lineRect.x,
+    y: lineRect.y,
+    width: lineRect.width,
+    height: lineRect.height,
+    topOffset: -boxBlockPadding,
+    bottomOffset: boxBlockPadding,
+  };
+  return lineBox;
+}
+
+function snapToLine(textRange, lineBoxHeight, elemRect) {
+  // range gives me coordinates for the textNode
+  // line box has our grid units
+  // element bounding rect has containing coordinates
+
+  let rangeRect = textRange.getBoundingClientRect();
+  let yOffset = rangeRect.y - elemRect.y;
+  let lineRect = DOMRect.fromRect(Object.assign({}, rangeRect, {
+    y: elemRect.y + yOffset - (yOffset % lineBoxHeight),
+    height: lineBoxHeight,
+  }));
+  return lineRect;
+}
+
+function highlightLine(lineRect, wordRect) {
+  const highlightLineElem = document.getElementById("lineHighlight");
+  const wordBox = document.getElementById("wordHighlight");
+  const lineIndex = (rangeRect.y - currentLineBox.y) / currentLineBox.height;
+}
+
+function highlightLineAndWord(options = {}, boundingElem) {
+  // Highlight a word on the first line as an example of using Range
+  // The text nodes and offets into them would need to be produced by
+  // tokenizing/splitting out into word/word-like sequences
+  const {
+    start: startRangeOffset, 
+    end: endRangeOffset,
+    textNode,
+  } = options.currentOffsets;
+  range.setStart(textNode, startRangeOffset);
+  range.setEnd(textNode, endRangeOffset);
+  console.log(`highlighting range [${startRangeOffset} - ${endRangeOffset}]`);
+  
+  // a box that contains the whole paragraph/block
+  const containerRect = boundingElem.getBoundingClientRect();
+
+  // a box that contains the element that contains the textNode
+  const currentLineBox = getLineBoxForTextRange(range, options.currentBlock.elem);
+  // a box that contains the current character range (e.g. current word)
+  const rangeRect = range.getBoundingClientRect();
+
+  // the rectangle that represents the line
+  const lineRect = new DOMRect(
+    currentLineBox.x,
+    currentLineBox.y,
+    containerRect.width,
+    currentLineBox.height
+  );
+  // the rectangle that represents the word
+  const wordRect = new DOMRect(
+    rangeRect.x,
+    currentLineBox.y,
+    rangeRect.width,
+    rangeRect.height
+  );
+
+  const highlightLineElem = document.getElementById("lineHighlight");
+  highlightLineElem.renderAreas(lineRect, wordRect);
+}
+
+function isBlockElement(elem) {
+  if (!elem || elem.nodeType !== elem.ELEMENT_NODE) {
+    return false;
+  }
+  if (["p", "section"].includes(elem.localName)) {
+    return true;
+  }
+  let csDisplay = getComputedStyle(elem).display; 
+  return !csDisplay.startsWith("inline");
+}
+
+function collectBlockElements(parentElem) {
+  const blocks = [];
+  // Find block (non inline) elements with textContent. 
+  // Discard empty elements
+  // Throw in the case an element mixes textNodes and/or inline elements and child block elements
+  let hasText = false;
+  const notEmptyRe = /\w+/;
+
+  for(let child of parentElem.childNodes) {
+    if(isBlockElement(child)) {
+      let blockChildren = collectBlockElements(child);
+      if (blockChildren) {
+        blocks.push(...blockChildren);
+      } else {
+        blocks.push(child);
+      }
+    } else if (
+      (child.nodeType == child.TEXT_NODE && notEmptyRe.test(child.wholeText)) ||
+      (child.nodeType = child.ELEMENT_NODE && notEmptyRe.test(child.textContent))
+    ) {
+      hasText = true;
+    }
+  }
+  console.assert(!(hasText && blocks.length), "Element has both text nodes and child block elements")
+  if (blocks.length) {
+    return blocks;
+  } else if (hasText) {
+    return [parentElem];
+  }
+  return null;
 }
 
 class TextBlock {
@@ -196,49 +342,7 @@ class TextBlock {
   }
 }
 
-function isBlockElement(elem) {
-  if (!elem || elem.nodeType !== elem.ELEMENT_NODE) {
-    return false;
-  }
-  if (["p", "section"].includes(elem.localName)) {
-    return true;
-  }
-  let csDisplay = getComputedStyle(elem).display; 
-  return !csDisplay.startsWith("inline");
-}
-function collectBlockElements(parentElem) {
-  const blocks = [];
-  // Find block (non inline) elements with textContent. 
-  // Discard empty elements
-  // Throw in the case an element mixes textNodes and/or inline elements and child block elements
-  let hasText = false;
-  const notEmptyRe = /\w+/;
-
-  for(let child of parentElem.childNodes) {
-    if(isBlockElement(child)) {
-      let blockChildren = collectBlockElements(child);
-      if (blockChildren) {
-        blocks.push(...blockChildren);
-      } else {
-        blocks.push(child);
-      }
-    } else if (
-      (child.nodeType == child.TEXT_NODE && notEmptyRe.test(child.wholeText)) ||
-      (child.nodeType = child.ELEMENT_NODE && notEmptyRe.test(child.textContent))
-    ) {
-      hasText = true;
-    }
-  }
-  console.assert(!(hasText && blocks.length), "Element has both text nodes and child block elements")
-  if (blocks.length) {
-    return blocks;
-  } else if (hasText) {
-    return [parentElem];
-  }
-  return null;
-}
-
-const autoplayHighlighter = new class _Autoplay {
+class PageHighlighter {
   currentBlockIndex = 0;
   currentWordIndex = 0;
   currentLineIndex = 0;
@@ -532,21 +636,6 @@ const autoplayHighlighter = new class _Autoplay {
       }
     }
   }
-  playNext() {
-    let changed = this._move(1, "word", "line", "block", "container");
-    if (!changed) {
-      // no change; we reached the end
-      console.info("Complete");
-      return;
-    }
-
-    this.playingTimer = setTimeout(() => {
-      this.renderCurrentRange();
-      if (this.autoPlay) {
-        this.playNext();
-      }
-    }, 400);
-  }
   renderCurrentRange() {
     let charRangeOffsets = this.wordOffsets[this.currentWordIndex];
     highlightLineAndWord({
@@ -554,7 +643,27 @@ const autoplayHighlighter = new class _Autoplay {
       currentTextNode: charRangeOffsets.textNode,
       currentOffsets: charRangeOffsets,
     }, this.containerElement);
+  }
+}
 
+class PageAutoplay {
+  constructor(highlighter) {
+    this.highlighter = highlighter;
+  }
+  playNext() {
+    let changed = this.highlighter._move(1, "word", "line", "block", "container");
+    if (!changed) {
+      // no change; we reached the end
+      console.info("Complete");
+      return;
+    }
+
+    this.playingTimer = setTimeout(() => {
+      this.highlighter.renderCurrentRange();
+      if (this.autoPlay) {
+        this.playNext();
+      }
+    }, 400);
   }
   play() {
     if (this.playingTimer) {
@@ -562,7 +671,7 @@ const autoplayHighlighter = new class _Autoplay {
     }
     document.getElementById("lineHighlight").classList.toggle("hidden", false);
     this.autoPlay = true;
-    this.renderCurrentRange();
+    this.highlighter.renderCurrentRange();
     this.playNext();
   }
   stop() {
@@ -571,84 +680,7 @@ const autoplayHighlighter = new class _Autoplay {
   }
 };
 
-// placeholder parser to get us the word offsets and give us something to highlight
-function getWordOffsets(textNode) {
-  let wordOffsets = [];
-  let wordBoundary = true;
-  let charIndex = 0;
-  let textString = textNode.wholeText;
-
-  for(let lastCharIndex = textString.length-1; charIndex <= lastCharIndex; charIndex++) {
-    let char = textString[charIndex];
-    if (/[\.\s,"]/.test(char)) {
-      if (!wordBoundary) {
-        wordOffsets[wordOffsets.length-1].end = charIndex;
-        wordBoundary = true; 
-      }
-      continue;
-    }
-    if (wordBoundary) {
-      wordOffsets.push({
-        start: charIndex,
-        word: char,
-        end: -1,
-      });
-      wordBoundary = false;
-    } else {
-      wordOffsets[wordOffsets.length-1].word += char;
-    }
-  }
-  wordOffsets[wordOffsets.length-1].end = charIndex;
-  return wordOffsets;
-}
-
-let range = document.createRange();
-
-function getLineBoxForTextRange(textRange, containerElem) {
-  // returns a DOMRect with bounds for a line of text in this element
-  // So that e.g. getting line 3 means box.height * (lineNum -1). 
-  let { lineHeight, fontSize } = getComputedStyle(containerElem);
-  if (lineHeight.endsWith("px")) {
-    lineHeight = parseFloat(lineHeight); 
-  } else {
-    // default to 1.2em for non px line-height values
-    lineHeight = parseFloat(fontSize) * 1.2; 
-  }
-  const MIN_BLOCK_PADDING = 5;
-  const blockPadding = parseFloat(getComputedStyle(containerElem).paddingBlock); 
-  const boxBlockPadding = Math.max(MIN_BLOCK_PADDING, blockPadding); 
-
-  // TODO: what if the text range spans elements?
-  const rect = containerElem.getBoundingClientRect(); 
-  const lineCount = (rect.height - blockPadding*2) / lineHeight;
-  const lineRect = snapToLine(textRange, lineHeight, rect);
-  const lineBox = {
-    index: Math.floor((lineRect.y - rect.y)/lineHeight), 
-    lineCount,
-    x: lineRect.x,
-    y: lineRect.y,
-    width: lineRect.width,
-    height: lineRect.height,
-    topOffset: -boxBlockPadding,
-    bottomOffset: boxBlockPadding,
-  };
-  return lineBox;
-}
-
-function snapToLine(textRange, lineBoxHeight, elemRect) {
-  // range gives me coordinates for the textNode
-  // line box has our grid units
-  // element bounding rect has containing coordinates
-
-  let rangeRect = textRange.getBoundingClientRect();
-  let yOffset = rangeRect.y - elemRect.y;
-  let lineRect = DOMRect.fromRect(Object.assign({}, rangeRect, {
-    y: elemRect.y + yOffset - (yOffset % lineBoxHeight),
-    height: lineBoxHeight,
-  }));
-  return lineRect;
-}
-class Highlighter extends HTMLElement {
+class HighlighterElement extends HTMLElement {
   linePadding = 5;
   connectedCallback() {
     this.lineAreaElem = this;
@@ -682,53 +714,31 @@ class Highlighter extends HTMLElement {
     `;
   }
 }
-customElements.define("reader-highlighter", Highlighter);
+customElements.define("reader-highlighter", HighlighterElement);
 
-function highlightLine(lineRect, wordRect) {
-  const highlightLineElem = document.getElementById("lineHighlight");
-  const wordBox = document.getElementById("wordHighlight");
-  const lineIndex = (rangeRect.y - currentLineBox.y) / currentLineBox.height;
+function init() {
+  window.pageHighlighter = new PageHighlighter();
+  const autoPlayer = window.autoPlayer = new PageAutoplay(window.pageHighlighter);
+
+  document.getElementById("autoplay-btn").checked = false;
+  document.getElementById("autoplay-btn").addEventListener("click", (event) => {
+    console.log("autoplay-btn clicked: ", event.target.checked);
+    if (event.target.checked) {
+      autoPlayer.play();
+    } else {
+      autoPlayer.stop();
+    }
+  });
+  let readerHighlighter = document.createElement("reader-highlighter");
+  document.body.appendChild(readerHighlighter);
+
+  pageHighlighter.init([
+    document.querySelector("body > header"),
+    ...document.querySelectorAll("body > section")
+  ]);
+  pageHighlighter.renderCurrentRange();
 }
 
-function highlightLineAndWord(options = {}, boundingElem) {
-  // Highlight a word on the first line as an example of using Range
-  // The text nodes and offets into them would need to be produced by
-  // tokenizing/splitting out into word/word-like sequences
-  const {
-    start: startRangeOffset, 
-    end: endRangeOffset,
-    textNode,
-  } = options.currentOffsets;
-  range.setStart(textNode, startRangeOffset);
-  range.setEnd(textNode, endRangeOffset);
-  console.log(`highlighting range [${startRangeOffset} - ${endRangeOffset}]`);
-  
-  // a box that contains the whole paragraph/block
-  const containerRect = boundingElem.getBoundingClientRect();
-
-  // a box that contains the element that contains the textNode
-  const currentLineBox = getLineBoxForTextRange(range, options.currentBlock.elem);
-  // a box that contains the current character range (e.g. current word)
-  const rangeRect = range.getBoundingClientRect();
-
-  // the rectangle that represents the line
-  const lineRect = new DOMRect(
-    currentLineBox.x,
-    currentLineBox.y,
-    containerRect.width,
-    currentLineBox.height
-  );
-  // the rectangle that represents the word
-  const wordRect = new DOMRect(
-    rangeRect.x,
-    currentLineBox.y,
-    rangeRect.width,
-    rangeRect.height
-  );
-
-  const highlightLineElem = document.getElementById("lineHighlight");
-  highlightLineElem.renderAreas(lineRect, wordRect);
-}
 document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
