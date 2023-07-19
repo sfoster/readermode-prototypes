@@ -10,10 +10,26 @@
   <meta content="text/html; charset=UTF-8" http-equiv="content-type" />
   <meta name="viewport" content="width=device-width; user-scalable=0" />
   <style>
-      #autoplay-control {
+      #controls-panel {
         position: fixed;
-        top: 5px;
+        top: 2px;
         right: 15px;
+        display: flex;
+        flex-direction: column;
+        z-index: 2;
+        box-shadow: 0 0 2px 2px rgba(255,0,0,0.4);
+        background-color: #eee;
+        padding: 10px;
+      }
+      #controls-panel > label,
+      #controls-panel > fieldset {
+        margin-block: 8px;
+      }
+      #autoplay-control {
+        display: block;
+        padding: 5px;
+        margin-inline: 3px;
+        outline: 1px solid grey;
       }
       #lineHighlight {
         width: 10px;
@@ -39,6 +55,9 @@
       }
       section, header {
         border-bottom: 1px dotted grey;
+      }
+      .hidden {
+        display:none;
       }
   </style>
 </head>
@@ -97,9 +116,21 @@
 </p>
 </section>
 
-<label id="autoplay-control"><input type="checkbox" id="autoplay-btn">Autoplay</label>
+<div id="controls-panel">
+  <label id="autoplay-control"><input type="checkbox" id="autoplay-btn">Autoplay</label>
+  <fieldset>
+    <legend>Highligher</legend>
+    <label id="outline-highlighter-control">
+      <input name="highlighter-choice" type="radio" id="outline-highlighter-option" checked>Outline
+    </label>
+    <label id="letterbox-highlighter-control">
+      <input name="highlighter-choice" type="radio" id="letterbox-highlighter-option">Letterbox
+    </label>
+  </fieldset>
+</div>
 
-<script>
+<script type="module">
+import { HighlightBox as LetterBoxHighlighterElement } from "./highlight-box.js";
 
 function clamp(num, min, max) {
   return Math.max(min, Math.min(max, num));
@@ -224,7 +255,8 @@ function highlightLineAndWord(options = {}, boundingElem) {
     rangeRect.height
   );
 
-  const highlightLineElem = document.getElementById("lineHighlight");
+  const highlightLineElem = document.querySelector(".reader-highlighter");
+  console.log("highlightLineAndWord, calling renderAreas on highlightLineElem", highlightLineElem);
   highlightLineElem.renderAreas(lineRect, wordRect);
 }
 
@@ -257,7 +289,7 @@ function collectBlockElements(parentElem) {
       }
     } else if (
       (child.nodeType == child.TEXT_NODE && notEmptyRe.test(child.wholeText)) ||
-      (child.nodeType = child.ELEMENT_NODE && notEmptyRe.test(child.textContent))
+      (child.nodeType == child.ELEMENT_NODE && notEmptyRe.test(child.textContent))
     ) {
       hasText = true;
     }
@@ -680,7 +712,7 @@ class PageAutoplay {
   }
 };
 
-class HighlighterElement extends HTMLElement {
+class OutlineHighlighterElement extends HTMLElement {
   linePadding = 5;
   connectedCallback() {
     this.lineAreaElem = this;
@@ -714,9 +746,56 @@ class HighlighterElement extends HTMLElement {
     `;
   }
 }
-customElements.define("reader-highlighter", HighlighterElement);
+customElements.define("reader-highlighter", OutlineHighlighterElement);
+
+function onHighlighterControlChange() {
+  switch (document.querySelector("[name='highlighter-choice']:checked")?.id) {
+    case "letterbox-highlighter-option":
+      initHighlighter("letterbox");
+      break;
+    case "outline-highlighter-option":
+      initHighlighter("outline");
+      break;
+  }
+  pageHighlighter?.renderCurrentRange();
+}
+
+function initHighlighter(highlighterType) {
+  let outlineHighlighter = document.querySelector(".outline-reader-highlighter");
+  let letterboxHighlighter = document.querySelector(".letterbox-reader-highlighter");
+  Array.from(document.querySelectorAll(".reader-highlighter")).forEach(elem => {
+    elem.classList.remove("reader-highlighter");
+    elem.classList.add("hidden");
+  });
+
+  if (highlighterType == "letterbox") {
+    if (!letterboxHighlighter) {
+      letterboxHighlighter = new LetterBoxHighlighterElement();
+      letterboxHighlighter.classList.add("letterbox-reader-highlighter");
+      letterboxHighlighter.classList.remove("hidden");
+      document.body.appendChild(letterboxHighlighter);
+    }
+    letterboxHighlighter.classList.add("reader-highlighter");
+    return letterboxHighlighter;
+  } else {
+    if (!outlineHighlighter) {
+      outlineHighlighter = new OutlineHighlighterElement();
+      outlineHighlighter.classList.add("outline-reader-highlighter");
+      outlineHighlighter.classList.remove("hidden");
+      document.body.appendChild(outlineHighlighter);
+    }
+    outlineHighlighter.classList.add("reader-highlighter");
+    return outlineHighlighter;
+  }
+}
 
 function init() {
+  let highlighterChoices = document.querySelectorAll("[name='highlighter-choice']");
+  console.log("highlighterChoices:", highlighterChoices);
+  Array.from(highlighterChoices).forEach(input => {
+    input.onchange = onHighlighterControlChange;
+  });
+
   window.pageHighlighter = new PageHighlighter();
   const autoPlayer = window.autoPlayer = new PageAutoplay(window.pageHighlighter);
 
@@ -729,14 +808,13 @@ function init() {
       autoPlayer.stop();
     }
   });
-  let readerHighlighter = document.createElement("reader-highlighter");
-  document.body.appendChild(readerHighlighter);
 
   pageHighlighter.init([
     document.querySelector("body > header"),
     ...document.querySelectorAll("body > section")
   ]);
-  pageHighlighter.renderCurrentRange();
+
+  onHighlighterControlChange();
 }
 
 document.addEventListener("DOMContentLoaded", init);

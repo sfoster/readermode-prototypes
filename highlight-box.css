@@ -1,4 +1,4 @@
-highlight-box {
+:host(highlight-box) {
   overflow: clip;
   position: fixed;
   display: block;
@@ -9,13 +9,22 @@ highlight-box {
   inset-block-end: 0;
   pointer-events: none;
 }
-highlight-box .highlight {
+.highlight {
   position: absolute;
-  display: block;
+  display: flex;
   outline: 2px dotted blue;
 }
-highlight-box .side {
+.side {
   position: absolute;
   display: block;
   background-color: rgba(0,0,0, 0.66);
 }
+.word-highlight {
+  display: block;
+  flex-basis: auto;
+  width: 10px;
+  height: 10px;
+  border: 1px solid orange;
+  background-color: rgba(255,153,0, 0.5);
+}
+

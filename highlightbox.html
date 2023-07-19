@@ -11,7 +11,6 @@
   <meta name="viewport" content="width=device-width; user-scalable=0" />
   <link rel="stylesheet" href="chrome://global/skin/aboutReader.css" type="text/css"/>
   <link rel="stylesheet" href="chrome://global/skin/aboutReaderPocket.css" type="text/css"/>
-  <link rel="stylesheet" href="./highlight-box.css" type="text/css"/>
 
   <script type="module" src="./highlight-box.js"></script>
   <script>
@@ -26,7 +25,7 @@
         console.log("Loaded, highlight-box:", ruler);
         if (ruler) {
           let currentElem = document.querySelector("[itemprop='articleBody']").firstElementChild;
-          ruler.moveToElement(currentElem);
+          this.moveToElement(currentElem);
           this.currentElem = currentElem;
           this.currentOffsets = [0,0];
           document.addEventListener("keydown", this);
@@ -35,7 +34,7 @@
       }
       onScroll(event) {
         console.log("Handling scrolling", event);
-        this.ruler.moveToElement(this.currentElem, this.currentOffsets);
+        this.moveToElement(this.currentElem, this.currentOffsets);
       }
       moveToLine(direction = 1) {
         let lineHeight = parseFloat(getComputedStyle(this.currentElem).lineHeight);
@@ -65,8 +64,29 @@
             }
         }
         this.currentOffsets = [xOffset, yOffset];
-        this.ruler.moveToElement(this.currentElem, this.currentOffsets);
+        this.moveToElement(this.currentElem, this.currentOffsets);
         // this.currentElem.scrollIntoView();
+      }
+      moveToElement(targetElem, offsets = [0,0]) {
+        console.log("moveToElement:", targetElem, offsets);
+        const coords = targetElem.getBoundingClientRect();
+        const [xOffset, yOffset] = offsets;
+        const { scrollTop, scrollLeft } = targetElem.ownerDocument.documentElement;
+        const lineHeight = parseFloat(getComputedStyle(targetElem).lineHeight);
+        const padding = {
+          left: 10,
+          right: 10,
+          top: 5,
+          bottom: 5,
+        };
+        const rect = {
+          left: coords.left + scrollLeft - padding.left,
+          top: coords.top + scrollTop - padding.top + yOffset,
+          width: coords.width + padding.left + padding.right,
+          height: lineHeight + padding.top + padding.bottom,
+        };
+        console.log("Moving highlight to rect:", rect);
+        this.ruler.renderAreas(rect);
       }
       onKeydown(event) {
         switch (event.keyCode) {
