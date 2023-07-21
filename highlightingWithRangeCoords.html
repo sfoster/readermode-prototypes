@@ -189,10 +189,7 @@ function getLineBoxForTextRange(textRange, containerElem) {
   const lineBox = {
     index: Math.floor((lineRect.y - rect.y)/lineHeight), 
     lineCount,
-    x: lineRect.x,
-    y: lineRect.y,
-    width: lineRect.width,
-    height: lineRect.height,
+    rect: lineRect,
     topOffset: -boxBlockPadding,
     bottomOffset: boxBlockPadding,
   };
@@ -219,45 +216,37 @@ function highlightLine(lineRect, wordRect) {
   const lineIndex = (rangeRect.y - currentLineBox.y) / currentLineBox.height;
 }
 
-function highlightLineAndWord(options = {}, boundingElem) {
-  // Highlight a word on the first line as an example of using Range
-  // The text nodes and offets into them would need to be produced by
-  // tokenizing/splitting out into word/word-like sequences
-  const {
-    start: startRangeOffset, 
-    end: endRangeOffset,
-    textNode,
-  } = options.currentOffsets;
-  range.setStart(textNode, startRangeOffset);
-  range.setEnd(textNode, endRangeOffset);
-  console.log(`highlighting range [${startRangeOffset} - ${endRangeOffset}]`);
-  
+function highlightLineAndWord({ 
+  rangeRect, // a box that contains the current character range (e.g. current word)
+  lineRect,   // a box that contains the element that contains the textNode
+  blockElem, 
+  boundingElem
+}) {
+  // place the highlight around the line and word indicated by the DOMRange
+
   // a box that contains the whole paragraph/block
   const containerRect = boundingElem.getBoundingClientRect();
 
-  // a box that contains the element that contains the textNode
-  const currentLineBox = getLineBoxForTextRange(range, options.currentBlock.elem);
-  // a box that contains the current character range (e.g. current word)
-  const rangeRect = range.getBoundingClientRect();
-
-  // the rectangle that represents the line
-  const lineRect = new DOMRect(
-    currentLineBox.x,
-    currentLineBox.y,
+  // the rectangle that represents the (full-width) line
+  const fullWidthLineRect = new DOMRect(
+    lineRect.x,
+    lineRect.y,
     containerRect.width,
-    currentLineBox.height
+    lineRect.height
   );
   // the rectangle that represents the word
   const wordRect = new DOMRect(
     rangeRect.x,
-    currentLineBox.y,
+    fullWidthLineRect.y,
     rangeRect.width,
     rangeRect.height
   );
-
-  const highlightLineElem = document.querySelector(".reader-highlighter");
-  console.log("highlightLineAndWord, calling renderAreas on highlightLineElem", highlightLineElem);
-  highlightLineElem.renderAreas(lineRect, wordRect);
+  // window.scrollTo(fullWidthLineRect.x, fullWidthLineRect.y);
+  requestAnimationFrame(() => {
+    const highlightLineElem = document.querySelector(".reader-highlighter");
+    console.log("highlightLineAndWord, calling renderAreas on highlightLineElem", highlightLineElem);
+    highlightLineElem.renderAreas(fullWidthLineRect, wordRect);
+  });
 }
 
 function isBlockElement(elem) {
@@ -356,12 +345,7 @@ class TextBlock {
           textNode,
           wordOffsets: [],
           firstWordIndex: wordIndex,
-          top: lineBox.y,
-          y: lineBox.y,
-          bottom: lineBox.bottom,
-          left: lineBox.x,
-          x: lineBox.x,
-          right: lineBox.right,
+          rect: lineBox.rect,
           charStart: offset.start, 
         });
       }
@@ -520,8 +504,8 @@ class PageHighlighter {
       return true;
     }
     return false;
-  }
-  moveLineNext() {
+  
+}  moveLineNext() {
     // tries to move the next line, doesnt advance to next block at the last
     if (this._move(1, "line")) {
       this.renderCurrentRange();
@@ -670,11 +654,16 @@ class PageHighlighter {
   }
   renderCurrentRange() {
     let charRangeOffsets = this.wordOffsets[this.currentWordIndex];
+    range.setStart(charRangeOffsets.textNode, charRangeOffsets.start);
+    range.setEnd(charRangeOffsets.textNode, charRangeOffsets.end);
+
+    console.log("Compare lineBoxes", this.currentLine, getLineBoxForTextRange(range, this.currentBlock.elem));
     highlightLineAndWord({
-      currentBlock: this.currentBlock,
-      currentTextNode: charRangeOffsets.textNode,
-      currentOffsets: charRangeOffsets,
-    }, this.containerElement);
+      rangeRect: range.getBoundingClientRect(), 
+      lineRect: this.currentLine.rect,
+      blockElem: this.currentBlock.elem, 
+      boundingElem: this.containerElement,
+    });
   }
 }
 
