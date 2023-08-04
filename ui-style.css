@@ -1,0 +1,43 @@
+#controls-panel {
+  position: fixed;
+  top: 2px;
+  right: 15px;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+  box-shadow: 0 0 2px 2px rgba(255,0,0,0.4);
+  background-color: #eee;
+  padding: 10px;
+}
+#controls-panel > label,
+#controls-panel > fieldset {
+  margin-block: 8px;
+}
+#autoplay-control {
+  display: block;
+  padding: 5px;
+  margin-inline: 3px;
+  outline: 1px solid grey;
+}
+#lineHighlight {
+  width: 10px;
+  height: 10px;
+  border: 1px solid blue;
+  position: absolute;
+  display: flex;
+  align-items: center;
+}
+#lineHighlight.hidden {
+  display:none;
+}
+#wordHighlight {
+  display: block;
+  flex-basis: auto;
+  width: 10px;
+  height: 10px;
+  border: 1px solid orange;
+  background-color: rgba(255,153,0, 0.5);
+}
+.hidden {
+  display:none;
+}
