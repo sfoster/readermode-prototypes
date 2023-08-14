@@ -467,12 +467,15 @@ button:disabled {
   height: 24px;
   width: 16px;
   inset-inline-start: -16px;
-  background-image: url("chrome://global/skin/reader/RM-Type-Controls-Arrow.svg");
+  background-image: url("./light-theme/RM-Type-Controls-Arrow.svg");
   display: block;
   -moz-context-properties: fill, stroke;
   fill: var(--popup-background);
   stroke: var(--opaque-popup-border);
   pointer-events: none;
+}
+.dark .dropdown-arrow {
+  background-image: url("./dark-theme/RM-Type-Controls-Arrow.svg");
 }
 
 .dropdown-arrow:dir(rtl) {
@@ -610,7 +613,10 @@ body.hcm .buttonrow.line-height-buttons {
 
 .sans-serif-button {
   font-family: Helvetica, Arial, sans-serif;
-  background-image: url("chrome://global/skin/reader/RM-Sans-Serif.svg");
+  background-image: url("./light-theme/RM-Sans-Serif.svg");
+}
+.dark .sans-serif-button {
+  background-image: url("./dark-theme/RM-Sans-Serif.svg");
 }
 
 /* Tweak padding to match the baseline on mac */
@@ -620,7 +626,10 @@ body.hcm .buttonrow.line-height-buttons {
 
 .serif-button {
   font-family: Georgia, "Times New Roman", serif;
-  background-image: url("chrome://global/skin/reader/RM-Serif.svg");
+  background-image: url("./light-theme/RM-Serif.svg");
+}
+.dark .serif-button {
+  background-image: url("./dark-theme/RM-Serif.svg");
 }
 
 body.hcm .color-scheme-buttons {
@@ -651,41 +660,65 @@ body.hcm .color-scheme-buttons {
 /* Toolbar icons */
 
 .close-button {
-  background-image: url("chrome://global/skin/icons/close.svg");
+  background-image: url("./light-theme/close.svg");
+}
+.dark .close-button {
+  background-image: url("./dark-theme/close.svg");
 }
 
 .style-button {
-  background-image: url("chrome://global/skin/reader/RM-Type-Controls-24x24.svg");
+  background-image: url("./light-theme/RM-Type-Controls-24x24.svg");
+}
+.dark .style-button {
+  background-image: url("./dark-theme/RM-Type-Controls-24x24.svg");
 }
 
 .minus-button {
   background-size: 18px 18px;
-  background-image: url("chrome://global/skin/reader/RM-Minus-24x24.svg");
+  background-image: url("./light-theme/RM-Minus-24x24.svg");
+}
+.dark .minus-button {
+  background-image: url("./dark-theme/RM-Minus-24x24.svg");
 }
 
 .plus-button {
   background-size: 18px 18px;
-  background-image: url("chrome://global/skin/reader/RM-Plus-24x24.svg");
+  background-image: url("./light-theme/RM-Plus-24x24.svg");
+}
+.dark .plus-button {
+  background-image: url("./dark-theme/RM-Plus-24x24.svg");
 }
 
 .content-width-minus-button {
   background-size: 42px 16px;
-  background-image: url("chrome://global/skin/reader/RM-Content-Width-Minus-42x16.svg");
+  background-image: url("./light-theme/RM-Content-Width-Minus-42x16.svg");
+}
+.dark .content-width-minus-button {
+  background-image: url("./dark-theme/RM-Content-Width-Minus-42x16.svg");
 }
 
 .content-width-plus-button {
   background-size: 44px 16px;
-  background-image: url("chrome://global/skin/reader/RM-Content-Width-Plus-44x16.svg");
+  background-image: url("./light-theme/RM-Content-Width-Plus-44x16.svg");
+}
+.dark .content-width-plus-button {
+  background-image: url("./dark-theme/RM-Content-Width-Plus-44x16.svg");
 }
 
 .line-height-minus-button {
   background-size: 34px 14px;
-  background-image: url("chrome://global/skin/reader/RM-Line-Height-Minus-38x14.svg");
+  background-image: url("./light-theme/RM-Line-Height-Minus-38x14.svg");
+}
+.dark .line-height-minus-button {
+  background-image: url("./dark-theme/RM-Line-Height-Minus-38x14.svg");
 }
 
 .line-height-plus-button {
   background-size: 34px 24px;
-  background-image: url("chrome://global/skin/reader/RM-Line-Height-Plus-38x24.svg");
+  background-image: url("./light-theme/RM-Line-Height-Plus-38x24.svg");
+}
+.dark .line-height-plus-button {
+  background-image: url("./dark-theme/RM-Line-Height-Plus-38x24.svg");
 }
 
 /* Mirror the line height buttons if the article is RTL. */
@@ -907,4 +940,11 @@ pre code {
   border: 1px solid var(--main-foreground);
   display: block;
   overflow: auto;
+}
+
+.pocket-button {
+  background-image: url("./light-theme/pocket.svg");
+}
+.dark .pocket-button {
+  background-image: url("./dark-theme/pocket.svg");
 }

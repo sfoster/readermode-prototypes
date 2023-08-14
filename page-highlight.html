@@ -69,20 +69,18 @@
 </p>
 </section>
 
-<div id="controls-panel">
-  <label id="autoplay-control"><input type="checkbox" id="autoplay-btn">Autoplay</label>
-  <fieldset>
-    <legend>Highligher</legend>
-    <label id="outline-highlighter-control">
-      <input name="highlighter-choice" type="radio" id="outline-highlighter-option" checked>Outline
-    </label>
-    <label id="letterbox-highlighter-control">
-      <input name="highlighter-choice" type="radio" id="letterbox-highlighter-option">Letterbox
-    </label>
-  </fieldset>
-</div>
-
-<script type="module" src="./page.js"></script>
+<script type="module">
+  import { init } from "./reader-page.js";
+  document.addEventListener("DOMContentLoaded", () => {
+    const { highlightManager } = init();
+    highlightManager.init([
+      document.querySelector("body > header"),
+      ...document.querySelectorAll("body > section"),
+    ]);
+    highlightManager.setCurrentHighlighter("letterbox");
+    highlightManager.renderCurrentRange();
+  });
+</script>
 </body>
 
 </html>
