@@ -1,0 +1,19 @@
+#lineHighlight {
+  width: 10px;
+  height: 10px;
+  border: 1px solid blue;
+  position: absolute;
+  display: flex;
+  align-items: center;
+}
+#lineHighlight.hidden {
+  display:none;
+}
+#wordHighlight {
+  display: block;
+  flex-basis: auto;
+  width: 10px;
+  height: 10px;
+  border: 1px solid orange;
+  background-color: rgba(255,153,0, 0.5);
+}

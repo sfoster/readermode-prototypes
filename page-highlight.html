@@ -1,0 +1,86 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this file,
+   - You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Sample page</title>
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type" />
+  <meta name="viewport" content="width=device-width; user-scalable=0" />
+  <link rel="StyleSheet" href="./content-style.css">
+  <link rel="StyleSheet" href="./ui-style.css">
+  <style>
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Letters From The Earth</h1>
+  <h2>by Mark Twain</h2>
+  <div class="pubdate">
+    <p>originally written in 1909, according to Mark Twain A to
+    Z and Mark Twain's Last Days</p>
+  </div>
+</header>
+
+<section>
+  <p>The Creator sat upon the throne, thinking. Behind him
+  stretched the illimitable continent of heaven, steeped in a
+  glory of light and color; before him rose the black night of
+  Space, like a wall. His mighty bulk towered rugged and
+  mountain-like into the zenith, and His divine head blazed
+  there like a distant sun. At His feet stood three colossal
+  figures, diminished to extinction, almost, by contrast --
+  archangels -- their heads level with His ankle-bone.</p>
+
+  <p>When the Creator had finished thinking, He said, "I have
+  thought. Behold!"</p>
+
+  <p>He lifted His hand, and from it burst a fountain-spray of fire,
+  a million stupendous suns, which clove the blackness and
+  soared, away and away and away, diminishing in magnitude
+  and intensity as they pierced the far frontiers of Space, until
+  at last they were but as diamond nailheads sparkling under
+  the domed vast roof of the universe.</p>
+</section>
+
+<section>
+<p>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+  More words<br>
+</p>
+</section>
+
+<script type="module">
+  import { init } from "./reader-page.js";
+  document.addEventListener("DOMContentLoaded", () => {
+    const { highlightManager } = init();
+    highlightManager.init([
+      document.querySelector("body > header"),
+      ...document.querySelectorAll("body > section"),
+    ]);
+    highlightManager.setCurrentHighlighter("letterbox");
+    highlightManager.renderCurrentRange();
+  });
+</script>
+</body>
+
+</html>

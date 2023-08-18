@@ -1,0 +1,6 @@
+p {
+  line-height: 1.5em;
+}
+section, header {
+  border-bottom: 1px dotted grey;
+}
