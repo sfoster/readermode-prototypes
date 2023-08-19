@@ -13,6 +13,13 @@
   position: absolute;
   display: flex;
   outline: 2px dotted blue;
+  background: transparent;
+}
+.highlight.hidden {
+  display:none;
+}
+.highlight.scrolling {
+  background-color: rgba(0,0,0, 0.66);
 }
 .side {
   position: absolute;
@@ -27,4 +34,7 @@
   border: 1px solid orange;
   background-color: rgba(255,153,0, 0.5);
 }
-
+.scrolling > .word-highlight {
+  border-color: transparent;
+  background-color: transparent;
+}
