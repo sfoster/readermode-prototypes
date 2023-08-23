@@ -11,7 +11,7 @@ export function init() {
   }
   let docFragment = document.createDocumentFragment();
 
-  window.highlightManager = new PageHighlightManager();
+  const highlightManager = window.highlightManager = new PageHighlightManager();
   highlightManager.registerHighlighter("letterbox", LetterBoxHighlighterElement);
   highlightManager.registerHighlighter("outline", OutlineHighlighterElement);
 
@@ -19,7 +19,7 @@ export function init() {
   autoPlayer.configure(window.highlightManager);
   docFragment.appendChild(autoPlayer);
 
-  window.highlighterControls = new HighlighterControlsElement();
+  const highlighterControls = window.highlighterControls = new HighlighterControlsElement();
   highlighterControls.configureHighlighters("letterbox", "outline");
   docFragment.appendChild(window.highlighterControls);
 
@@ -32,4 +32,21 @@ export function init() {
     highlightManager,
     highlighterControls,
   };
+}
+
+export function uninit() {
+  let controls = document.querySelector("#controls-panel");
+  let highlighter = document.querySelector("reader-highlighter");
+  if (controls) {
+    document.body.removeChild(controls);
+  }
+
+  if (highlighter) {
+    document.body.removeChild(highlighter);
+  }
+
+  window.highlightManager.uninit();
+  window.highlightManager = null;
+  window.highlighterControls = null;
+  window.autoPlayer = null;
 }
