@@ -8,9 +8,8 @@
     <link rel="StyleSheet" href="./content-style.css">
     <link rel="StyleSheet" href="./ui-style.css">
     <script type="module">
-      import { init } from "./reader-page.js";
-
-      document.addEventListener("DOMContentLoaded", () => {
+      import { uninit, init } from "./reader-page.js";
+      function initializePage() {
         const { highlightManager } = init();
         highlightManager.init([
           document.querySelector("body > .container > .reader-header .reader-title"),
@@ -18,7 +17,10 @@
           ...document.querySelectorAll("body > .container .moz-reader-content"),
         ]);
         highlightManager.setCurrentHighlighter("letterbox");
-      });
+      }
+      document.addEventListener("DOMContentLoaded", initializePage);
+      window.init = initializePage;
+      window.uninit = uninit;
     </script>
 </head>
 

@@ -27,6 +27,16 @@ export class HighlighterControlsElement extends MozLitElement {
       })
     });
   }
+  tearDown() {
+    if (this._raf) {
+      cancelAnimationFrame(this._raf);
+    }
+  }
+
+  disconnectedCallback() {
+    this.tearDown();
+    super.disconnectedCallback();
+  }
 
   onHighlighterControlChange() {
     let checkedChoice = Array.from(this.highlighterChoices).find(input => input.checked);
@@ -86,6 +96,13 @@ export class AutoplayControlsElement extends MozLitElement {
   };
   configure(highlighter) {
     this.highlighter = highlighter;
+  }
+  tearDown() {
+    this.stop();
+  }
+  disconnectedCallback() {
+    this.tearDown();
+    super.disconnectedCallback();
   }
   playNext() {
     let changed = this.highlighter._move(1, "word", "line", "block", "container");
