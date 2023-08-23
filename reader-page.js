@@ -20,7 +20,7 @@ export function init() {
   docFragment.appendChild(autoPlayer);
 
   window.highlighterControls = new HighlighterControlsElement();
-  highlighterControls.configureHighlighters("letterbox", "outline");
+  highlighterControls.configureHighlighters("outline", "letterbox");
   docFragment.appendChild(window.highlighterControls);
 
   controlsContainer.appendChild(docFragment);
@@ -32,4 +32,20 @@ export function init() {
     highlightManager,
     highlighterControls,
   };
+}
+
+export function uninit() {
+  let controls = document.querySelector("#controls-panel");
+  let highlighter = document.querySelector("reader-highlighter");
+  if (controls) {
+    document.body.removeChild(controls);
+  }
+
+  if (highlighter) {
+    document.body.removeChild(highlighter);
+  }
+
+  window.highlightManager = null;
+  window.highlighterControls = null;
+  window.autoPlayer = null;
 }
