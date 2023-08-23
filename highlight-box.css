@@ -12,7 +12,7 @@
 .highlight {
   position: absolute;
   display: flex;
-  outline: 2px dotted blue;
+  /* outline: 2px dotted blue; */
   background: transparent;
 }
 .highlight.hidden {
@@ -24,9 +24,48 @@
 .side {
   position: absolute;
   display: block;
-  background-color: rgba(0,0,0, 0.66);
+  background-color: rgba(255,255,255, 0.66);
 }
 .word-highlight {
+  display: block;
+  flex-basis: auto;
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid #c40000;
+  /*transition: width .08s ease-out;*/
+}
+.scrolling > .word-highlight {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+
+:host(.dark highlight-box) {
+  overflow: clip;
+  position: fixed;
+  display: block;
+  z-index: 1;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-start: 0;
+  inset-block-end: 0;
+  pointer-events: none;
+}
+.highlight.dark {
+  position: absolute;
+  display: flex;
+  outline: 2px dotted blue;
+  background: transparent;
+}
+.highlight.scrolling.dark {
+  background-color: rgba(0,0,0, 0.66);
+}
+.side.dark {
+  position: absolute;
+  display: block;
+  background-color: rgba(0,0,0, 0.66);
+}
+.dark .word-highlight {
   display: block;
   flex-basis: auto;
   width: 10px;
@@ -34,7 +73,4 @@
   border: 1px solid orange;
   background-color: rgba(255,153,0, 0.5);
 }
-.scrolling > .word-highlight {
-  border-color: transparent;
-  background-color: transparent;
-}
+

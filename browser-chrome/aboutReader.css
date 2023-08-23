@@ -948,3 +948,11 @@ pre code {
 .dark .pocket-button {
   background-image: url("./dark-theme/pocket.svg");
 }
+
+.rulers-button {
+  background-image: url("./light-theme/rulers.svg");
+}
+
+.dark .rulers-button {
+  filter: invert(100%);
+}
